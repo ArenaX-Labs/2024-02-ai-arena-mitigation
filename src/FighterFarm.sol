@@ -321,7 +321,7 @@ contract FighterFarm is ERC721, ERC721Enumerable {
         require(msg.sender == _mergingPoolAddress);
         _createNewFighter(
             to, 
-            uint256(keccak256(abi.encode(msg.sender, fighters.length))), 
+            uint256(keccak256(abi.encode(to, fighters.length))), 
             modelHash, 
             modelType,
             0,
@@ -352,22 +352,25 @@ contract FighterFarm is ERC721, ERC721Enumerable {
     /// @param from Address of the current owner.
     /// @param to Address of the new owner.
     /// @param tokenId ID of the fighter being transferred.
+    /// @param data Additional data.
     function safeTransferFrom(
-        address from, 
-        address to, 
-        uint256 tokenId
+        address from,
+        address to,
+        uint256 tokenId,
+        bytes memory data
     ) 
         public 
-        override(ERC721, IERC721)
+        virtual 
+        override(ERC721, IERC721) 
     {
         require(_ableToTransfer(tokenId, to));
-        _safeTransfer(from, to, tokenId, "");
+        _safeTransfer(from, to, tokenId, data);
     }
 
     /// @notice Rolls a new fighter with random traits.
     /// @param tokenId ID of the fighter being re-rolled.
     /// @param fighterType The fighter type.
-    function reRoll(uint8 tokenId, uint8 fighterType) public {
+    function reRoll(uint256 tokenId, uint8 fighterType) public {
         require(msg.sender == ownerOf(tokenId));
         require(numRerolls[tokenId] < maxRerollsAllowed[fighterType]);
         require(_neuronInstance.balanceOf(msg.sender) >= rerollCost, "Not enough NRN for reroll");
