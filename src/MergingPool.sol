@@ -2,11 +2,13 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { FighterFarm } from "./FighterFarm.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+
 
 /// @title MergingPool
 /// @author ArenaX Labs Inc.
 /// @notice This contract allows users to potentially earn a new fighter NFT.
-contract MergingPool {
+contract MergingPool is ReentrancyGuard{
 
     /*//////////////////////////////////////////////////////////////
                                 EVENTS
@@ -141,7 +143,7 @@ contract MergingPool {
         string[] calldata modelTypes,
         uint256[2][] calldata customAttributes
     ) 
-        external 
+        external nonReentrant
     {
         uint256 winnersLength;
         uint32 claimIndex = 0;
@@ -203,7 +205,7 @@ contract MergingPool {
     /// @param maxId The maximum token ID up to which the points will be retrieved.
     /// @return An array of points corresponding to the fighters' token IDs.
     function getFighterPoints(uint256 maxId) public view returns(uint256[] memory) {
-        uint256[] memory points = new uint256[](1);
+        uint256[] memory points = new uint256[](maxId);
         for (uint256 i = 0; i < maxId; i++) {
             points[i] = fighterPoints[i];
         }
