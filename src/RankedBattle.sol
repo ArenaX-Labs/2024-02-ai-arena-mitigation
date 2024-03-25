@@ -133,6 +133,9 @@ contract RankedBattle {
     /// @notice Indicates whether we have calculated the staking factor for a given round and token.
     mapping(uint256 => mapping(uint256 => bool)) _calculatedStakingFactor;
 
+    /// @notice Maps token ID to round ID to starting address.
+    mapping(uint256 => mapping(uint256 => address)) public addressStartedRound;
+
     /*//////////////////////////////////////////////////////////////
                                CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
@@ -291,12 +294,13 @@ contract RankedBattle {
 
     /// @notice Claims NRN tokens for the specified rounds.
     /// @dev Caller can only claim once per round.
-    function claimNRN() external {
+    function claimNRN(uint32 totalRoundsToConsider) external {
         require(numRoundsClaimed[msg.sender] < roundId, "Already claimed NRNs for this period");
         uint256 claimableNRN = 0;
         uint256 nrnDistribution;
         uint32 lowerBound = numRoundsClaimed[msg.sender];
-        for (uint32 currentRound = lowerBound; currentRound < roundId; currentRound++) {
+        require(lowerBound + totalRoundsToConsider < roundId, "RankedBattle: totalRoundsToConsider exceeds the limit");
+        for (uint32 currentRound = lowerBound; currentRound < lowerBound + totalRoundsToConsider; currentRound++) {
             nrnDistribution = getNrnDistribution(currentRound);
             claimableNRN += (
                 accumulatedPointsPerAddress[msg.sender][currentRound] * nrnDistribution   
@@ -336,6 +340,13 @@ contract RankedBattle {
             _voltageManagerInstance.ownerVoltageReplenishTime(fighterOwner) <= block.timestamp || 
             _voltageManagerInstance.ownerVoltage(fighterOwner) >= VOLTAGE_COST
         );
+
+        if (addressStartedRound[tokenId][roundId] == address(0)) {
+          addressStartedRound[tokenId][roundId] = fighterOwner;
+        }
+        else {
+          require(addressStartedRound[tokenId][roundId] == fighterOwner);
+        }
 
         _updateRecord(tokenId, battleResult);
         uint256 stakeAtRisk = _stakeAtRiskInstance.getStakeAtRisk(tokenId);

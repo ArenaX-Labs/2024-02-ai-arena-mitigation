@@ -2,11 +2,13 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import { FighterFarm } from "./FighterFarm.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+
 
 /// @title MergingPool
 /// @author ArenaX Labs Inc.
 /// @notice This contract allows users to potentially earn a new fighter NFT.
-contract MergingPool {
+contract MergingPool is ReentrancyGuard{
 
     /*//////////////////////////////////////////////////////////////
                                 EVENTS
@@ -139,14 +141,16 @@ contract MergingPool {
     function claimRewards(
         string[] calldata modelURIs, 
         string[] calldata modelTypes,
-        uint256[2][] calldata customAttributes
+        uint256[2][] calldata customAttributes,
+        uint32 totalRoundsToConsider
     ) 
-        external 
+        external nonReentrant
     {
         uint256 winnersLength;
         uint32 claimIndex = 0;
         uint32 lowerBound = numRoundsClaimed[msg.sender];
-        for (uint32 currentRound = lowerBound; currentRound < roundId; currentRound++) {
+        require(lowerBound + totalRoundsToConsider < roundId, "MergingPool: totalRoundsToConsider exceeds the limit");
+        for (uint32 currentRound = lowerBound; currentRound < lowerBound + totalRoundsToConsider; currentRound++) {
             numRoundsClaimed[msg.sender] += 1;
             winnersLength = winnerAddresses[currentRound].length;
             for (uint32 j = 0; j < winnersLength; j++) {
