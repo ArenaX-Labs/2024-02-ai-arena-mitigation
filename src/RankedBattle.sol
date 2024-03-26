@@ -240,6 +240,7 @@ contract RankedBattle {
     function setNewRound() external {
         require(isAdmin[msg.sender]);
         require(totalAccumulatedPoints[roundId] > 0);
+        globalStakedAmount = globalStakedAmount - _stakeAtRiskInstance.totalStakeAtRisk(roundId);
         roundId += 1;
         _stakeAtRiskInstance.setNewRound(roundId);
         rankedNrnDistribution[roundId] = rankedNrnDistribution[roundId - 1];
@@ -289,7 +290,7 @@ contract RankedBattle {
         hasUnstaked[tokenId][roundId] = true;
         bool success = _neuronInstance.transfer(msg.sender, amount);
         if (success) {
-            if (amountStaked[tokenId] == 0) {
+            if (amountStaked[tokenId] == 0 && _stakeAtRiskInstance.getStakeAtRisk(tokenId) == 0) {
                 _fighterFarmInstance.updateFighterStaking(tokenId, false);
             }
             emit Unstaked(msg.sender, amount);
