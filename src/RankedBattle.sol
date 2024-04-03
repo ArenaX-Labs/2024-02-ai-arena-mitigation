@@ -302,7 +302,7 @@ contract RankedBattle {
     /// @param tokenId The ID of the token to unstake.
     function unstakeNRN(uint256 amount, uint256 tokenId) external {
         require(_fighterFarmInstance.ownerOf(tokenId) == msg.sender, "Caller does not own fighter");
-        require(!rankedOpen || (rankedOpen && !allowedStakingDuringRanked && !hasUnstaked[tokenId][roundId]), "Unstaking not allowed now");
+        require(!rankedOpen || (rankedOpen && allowedStakingDuringRanked), "UnStaking not allowed now");
         if (amount > amountStaked[tokenId]) {
             amount = amountStaked[tokenId];
         }
