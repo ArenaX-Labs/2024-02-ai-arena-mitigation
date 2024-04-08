@@ -20,6 +20,8 @@ contract GameItemsTest is Test {
     address internal _ownerAddress;
     address internal _treasuryAddress;
     address internal _neuronContributorAddress;
+    bytes32 merkle_tree_root = 0x0; // Placeholder for the Merkle tree root
+    
 
     FighterFarm internal _fighterFarmContract;
     MergingPool internal _mergingPoolContract;
@@ -46,7 +48,13 @@ contract GameItemsTest is Test {
         getProb();
 
         _gameItemsContract = new GameItems(_ownerAddress, _treasuryAddress);
-        _neuronContract = new Neuron(_ownerAddress, _treasuryAddress, _neuronContributorAddress);
+
+        _neuronContract = new Neuron(
+            _ownerAddress, 
+            _treasuryAddress, 
+            _neuronContributorAddress, 
+            merkle_tree_root
+        );
 
         _neuronContract.addSpender(address(_gameItemsContract));
 

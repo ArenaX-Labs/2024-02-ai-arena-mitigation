@@ -23,6 +23,8 @@ contract MergingPoolTest is Test {
     address internal _ownerAddress;
     address internal _treasuryAddress;
     address internal _neuronContributorAddress;
+    bytes32 merkle_tree_root = 0x0; // Placeholder for the Merkle tree root
+
 
     /*//////////////////////////////////////////////////////////////
                              CONTRACT INSTANCES
@@ -68,7 +70,12 @@ contract MergingPoolTest is Test {
 
         _voltageManagerContract = new VoltageManager(_ownerAddress, address(_gameItemsContract));
 
-        _neuronContract = new Neuron(_ownerAddress, _treasuryAddress, _neuronContributorAddress);
+        _neuronContract = new Neuron(
+            _ownerAddress, 
+            _treasuryAddress, 
+            _neuronContributorAddress, 
+            merkle_tree_root
+        );
 
         _rankedBattleContract = new RankedBattle(
             _ownerAddress, address(_fighterFarmContract), _DELEGATED_ADDRESS, address(_voltageManagerContract)

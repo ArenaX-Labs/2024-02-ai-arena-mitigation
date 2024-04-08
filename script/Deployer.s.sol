@@ -21,6 +21,7 @@ contract DeployerScript is Script {
         [0xb2B2d81CD161c198C81072091EEae09b7bBcCb40, 0x91832Bc473daB70e9490cFC2c268e0Ab293f01d5];
 
     uint8[][] public probabilities;
+    bytes32 merkle_tree_root = 0x0; // Placeholder for the Merkle tree root
 
     function getProb() public {
         probabilities.push([13, 7, 7, 13, 10, 13, 13, 10, 10, 4]);
@@ -47,7 +48,12 @@ contract DeployerScript is Script {
         RankedBattle rankedBattle =
             new RankedBattle(deployerAddress, gameServerAddress, address(fighterFarm), address(voltageManager));
         MergingPool mergingPool = new MergingPool(deployerAddress, address(rankedBattle), address(fighterFarm));
-        Neuron neuron = new Neuron(deployerAddress, treasuryAddress, contributorAddress);
+        Neuron neuron = new Neuron(
+            deployerAddress, 
+            treasuryAddress, 
+            contributorAddress, 
+            merkle_tree_root
+        );
         StakeAtRisk stakeAtRisk = new StakeAtRisk(deployerAddress, treasuryAddress, address(neuron), address(rankedBattle));
 
         // After Deployment ------------------------
