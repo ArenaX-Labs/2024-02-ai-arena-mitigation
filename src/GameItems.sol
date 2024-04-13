@@ -188,14 +188,6 @@ contract GameItems is ERC1155 {
                             PUBLIC FUNCTIONS
     //////////////////////////////////////////////////////////////*/    
 
-    /// @notice Sets the allowed burning addresses.
-    /// @dev Only the admins are authorized to call this function.
-    /// @param newBurningAddress The address to allow for burning.
-    function setAllowedBurningAddresses(address newBurningAddress) public {
-        require(isAdmin[msg.sender]);
-        allowedBurningAddresses[newBurningAddress] = true;
-    }
-
     /// @notice Adjusts the allowed burning addresses.
     /// @dev Only the admins are authorized to call this function.
     /// @param burningAddress The address to adjust for burning.
