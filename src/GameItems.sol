@@ -196,6 +196,14 @@ contract GameItems is ERC1155 {
         allowedBurningAddresses[newBurningAddress] = true;
     }
 
+    /// @notice Adjusts the allowed burning addresses.
+    /// @dev Only the admins are authorized to call this function.
+    /// @param burningAddress The address to adjust for burning.
+    function adjustBurningAccess(address burningAddress, bool access) public {
+        require(isAdmin[msg.sender]);
+        allowedBurningAddresses[burningAddress] = access;
+    }
+
     /// @notice Sets the token URI for a game item
     /// @dev Only the admins are authorized to call this function.
     /// @param tokenId The token id for the specific game item being queried.    
