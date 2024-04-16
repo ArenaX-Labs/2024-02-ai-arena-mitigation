@@ -20,6 +20,7 @@ contract NeuronTest is Test {
     address internal _ownerAddress;
     address internal _treasuryAddress;
     address internal _neuronContributorAddress;
+    bytes32 merkle_tree_root = 0x0; // Placeholder for the Merkle tree root
 
     /*//////////////////////////////////////////////////////////////
                              CONTRACT INSTANCES
@@ -34,7 +35,12 @@ contract NeuronTest is Test {
         _ownerAddress = address(this);
         _treasuryAddress = vm.addr(1);
         _neuronContributorAddress = vm.addr(2);
-        _neuronContract = new Neuron(_ownerAddress, _treasuryAddress, _neuronContributorAddress);
+         _neuronContract = new Neuron(
+            _ownerAddress, 
+            _treasuryAddress, 
+            _neuronContributorAddress, 
+            merkle_tree_root
+        );
     }
 
     /// @notice Test owner transferring ownership and new owner calling only owner functions.
@@ -108,58 +114,30 @@ contract NeuronTest is Test {
         assertEq(_neuronContract.isAdmin(_DELEGATED_ADDRESS), false);
     }
 
-    /// @notice Test admin setting up airdrop and checking if the correct allowances were set.
-    function testSetupAirdropFromAdmin() public {
-        address[] memory recipients = new address[](2);
-        recipients[0] = vm.addr(3);
-        recipients[1] = vm.addr(4);
-        uint256[] memory amounts = new uint256[](2);
-        amounts[0] = 1_000 * 10 ** 18;
-        amounts[1] = amounts[0];
-        _neuronContract.setupAirdrop(recipients, amounts);
-        uint256 firstRecipient = _neuronContract.allowance(_treasuryAddress, recipients[0]);
-        uint256 secondRecipient = _neuronContract.allowance(_treasuryAddress, recipients[1]);
-        assertEq(firstRecipient, amounts[0]);
-        assertEq(secondRecipient, amounts[0]);
-    }
-
-    /// @notice Test a non admin setting up airdrop reverting.
-    function testRevertSetupAirdropFromNonAdmin() public {
-        address[] memory recipients = new address[](1);
-        recipients[0] = vm.addr(3);
-        uint256[] memory amounts = new uint256[](1);
-        amounts[0] = 1_000 * 10 ** 18;
-        vm.startPrank(msg.sender);
-        vm.expectRevert();
-        _neuronContract.setupAirdrop(recipients, amounts);
-        uint256 allowance = _neuronContract.allowance(_treasuryAddress, recipients[0]);
-        assertEq(allowance, 0);
-    }
-
     /// @notice Test claiming an airdrop from an account that has an valid allowance.
-    function testClamAirdropAccountWithAllowance() public {
-        address[] memory recipients = new address[](1);
-        recipients[0] = vm.addr(3);
-        uint256[] memory amounts = new uint256[](1);
-        amounts[0] = 1_000 * 10 ** 18;
-        _neuronContract.setupAirdrop(recipients, amounts);
-        uint256 allowance = _neuronContract.allowance(_treasuryAddress, recipients[0]);
-        assertEq(allowance, amounts[0]);
-        vm.prank(recipients[0]);
-        _neuronContract.claim(amounts[0]);
-        uint256 newAllowance = _neuronContract.allowance(_treasuryAddress, recipients[0]);
-        assertEq(newAllowance, 0);
-        uint256 neuronBalance = _neuronContract.balanceOf(recipients[0]);
-        assertEq(neuronBalance, amounts[0]);
-    }
+    // function testClamAirdropAccountWithAllowance() public {
+    //     address[] memory recipients = new address[](1);
+    //     recipients[0] = vm.addr(3);
+    //     uint256[] memory amounts = new uint256[](1);
+    //     amounts[0] = 1_000 * 10 ** 18;
+    //     _neuronContract.setupAirdrop(recipients, amounts);
+    //     uint256 allowance = _neuronContract.allowance(_treasuryAddress, recipients[0]);
+    //     assertEq(allowance, amounts[0]);
+    //     vm.prank(recipients[0]);
+    //     _neuronContract.claim(amounts[0]);
+    //     uint256 newAllowance = _neuronContract.allowance(_treasuryAddress, recipients[0]);
+    //     assertEq(newAllowance, 0);
+    //     uint256 neuronBalance = _neuronContract.balanceOf(recipients[0]);
+    //     assertEq(neuronBalance, amounts[0]);
+    // }
 
     /// @notice Test claiming an airdrop from an account with an invalid allowance.
-    function testRevertClamAirdropAccountWithNoAllowance() public {
-        vm.expectRevert("ERC20: claim amount exceeds allowance");
-        _neuronContract.claim(1_000 * 10 ** 18);
-        assertEq(_neuronContract.balanceOf(_ownerAddress), 0);
-        assertEq(_neuronContract.allowance(_treasuryAddress, _ownerAddress), 0);
-    }
+    // function testRevertClamAirdropAccountWithNoAllowance() public {
+    //     vm.expectRevert("ERC20: claim amount exceeds allowance");
+    //     _neuronContract.claim(1_000 * 10 ** 18);
+    //     assertEq(_neuronContract.balanceOf(_ownerAddress), 0);
+    //     assertEq(_neuronContract.allowance(_treasuryAddress, _ownerAddress), 0);
+    // }
 
     /// @notice Test owner adding a minter and minter minting 100 million tokens.
     function testMintWithMinterRole() public {

@@ -18,6 +18,7 @@ import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 contract FighterFarmTest is Test {
     // Utilities internal _utils;
     // address payable[] internal _users;
+    uint256 deployerPrivateKey = vm.envUint("DELEGATED_PRIVATE_KEY_1");
 
     /*//////////////////////////////////////////////////////////////
                                 CONSTANTS
@@ -28,6 +29,7 @@ contract FighterFarmTest is Test {
     address internal _ownerAddress;
     address internal _treasuryAddress;
     address internal _neuronContributorAddress;
+    bytes32 merkle_tree_root = 0x0; // Placeholder for the Merkle tree root
 
     /*//////////////////////////////////////////////////////////////
                              CONTRACT INSTANCES
@@ -75,7 +77,12 @@ contract FighterFarmTest is Test {
 
         _voltageManagerContract = new VoltageManager(_ownerAddress, address(_gameItemsContract));
 
-        _neuronContract = new Neuron(_ownerAddress, _treasuryAddress, _neuronContributorAddress);
+        _neuronContract = new Neuron(
+            _ownerAddress, 
+            _treasuryAddress, 
+            _neuronContributorAddress, 
+            merkle_tree_root
+        );
 
         _rankedBattleContract = new RankedBattle(
             _ownerAddress, address(_fighterFarmContract), _DELEGATED_ADDRESS, address(_voltageManagerContract)
@@ -154,6 +161,7 @@ contract FighterFarmTest is Test {
     /// @notice Test delegate updating a fighter's URI.
     function testSetTokenURIFromDelegate() public {
         string memory newTokenURI = "test URI";
+        _mintFromMergingPool(_DELEGATED_ADDRESS);
         vm.prank(_DELEGATED_ADDRESS);
         _fighterFarmContract.setTokenURI(0, newTokenURI);
         assertEq(_fighterFarmContract.tokenURI(0), newTokenURI);
@@ -270,8 +278,31 @@ contract FighterFarmTest is Test {
         // approve the fighterfarm contract to burn the mintpass
         _mintPassContract.approve(address(_fighterFarmContract), 1);
 
+        // Encode the parameters in the exact way they are expected to be hashed in your contract
+        bytes32 paramsHash = keccak256(abi.encode(
+            _mintpassIdsToBurn,
+            _fighterTypes,
+            _iconsTypes,
+            _mintPassDNAs,
+            _neuralNetHashes,
+            _modelTypes
+        ));
+
+        // Prefix the hash as per EIP-191
+        bytes32 prefixedHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", paramsHash));
+
+        // Sign the prefixed hash
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(deployerPrivateKey, prefixedHash);
+        bytes memory redeemMintPassSignature = abi.encodePacked(r, s, v);
+        
         _fighterFarmContract.redeemMintPass(
-            _mintpassIdsToBurn, _fighterTypes, _iconsTypes, _mintPassDNAs, _neuralNetHashes, _modelTypes
+            _mintpassIdsToBurn, 
+            _fighterTypes, 
+            _iconsTypes,
+            _mintPassDNAs, 
+            _neuralNetHashes,
+            _modelTypes,
+            redeemMintPassSignature
         );
 
         // check balance to see if we successfully redeemed the mintpass for a fighter
