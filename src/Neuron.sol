@@ -3,6 +3,7 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
+import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
 /// @title Neuron
 /// @author ArenaX Labs Inc.
@@ -55,6 +56,12 @@ contract Neuron is ERC20, AccessControl {
     /// @notice Mapping of address to admin status.
     mapping(address => bool) public isAdmin;
 
+    /// @notice Airdrop kind to merkle tree root.
+    mapping(string => bytes32) public airdropToMerkleRoot;
+
+    /// @notice Mapping of claime's and claimed status.
+    mapping(bytes32 => mapping(address => bool)) public rootClaimedAirdrop;
+
     /*//////////////////////////////////////////////////////////////
                                CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
@@ -65,9 +72,15 @@ contract Neuron is ERC20, AccessControl {
     /// @param treasuryAddress_ The address of the community treasury
     /// @param contributorAddress The address that will distribute NRNs to early contributors when 
     /// the initial supply is minted.
-    constructor(address ownerAddress, address treasuryAddress_, address contributorAddress)
-        ERC20("Neuron", "NRN")
+    constructor(
+        address ownerAddress, 
+        address treasuryAddress_, 
+        address contributorAddress,
+        bytes32 root
+    )
+        ERC20("Neuron", "N")
     {
+        airdropToMerkleRoot["TGE"] = root;
         _ownerAddress = ownerAddress;
         treasuryAddress = treasuryAddress_;
         isAdmin[_ownerAddress] = true;
@@ -78,6 +91,23 @@ contract Neuron is ERC20, AccessControl {
     /*//////////////////////////////////////////////////////////////
                             EXTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
+
+    /// @notice Sets root of the merkle tree.
+    /// @dev Only the owner address is authorized to call this function.
+    /// @param airDropKind airdrop type.
+    /// @param root Root of the merkle tree.
+    function setMerkleRoot(string memory airDropKind, bytes32 root) external {
+        require(msg.sender == _ownerAddress);
+        airdropToMerkleRoot[airDropKind] = root;
+    }
+
+    /// @notice Sets the treasury address.
+    /// @dev Only the owner address is authorized to call this function.
+    /// @param treasuryAddress_ Address of the new treasury.
+    function setTreasuryAddress(address treasuryAddress_) external {
+        require(msg.sender == _ownerAddress);
+        treasuryAddress = treasuryAddress_;
+    }
 
     /// @notice Transfers ownership from one address to another.
     /// @dev Only the owner address is authorized to call this function.
@@ -117,29 +147,25 @@ contract Neuron is ERC20, AccessControl {
     /// @param access Whether the address has admin access or not.
     function adjustAdminAccess(address adminAddress, bool access) external {
         require(msg.sender == _ownerAddress);
+        require(isAdmin[adminAddress] != access, "Nothing to change");
         isAdmin[adminAddress] = access;
     }  
 
-    /// @notice Sets up the allowance from the treasury address to transfer to each recipient address.
-    /// @dev Only admins are authorized to call this function.
-    /// @param recipients The array of recipient addresses
-    /// @param amounts The array of corresponding amounts for each recipient
-    function setupAirdrop(address[] calldata recipients, uint256[] calldata amounts) external {
-        require(isAdmin[msg.sender]);
-        require(recipients.length == amounts.length);
-        uint256 recipientsLength = recipients.length;
-        for (uint32 i = 0; i < recipientsLength; i++) {
-            _approve(treasuryAddress, recipients[i], amounts[i]);
-        }
-    }
-
     /// @notice Claims the specified amount of tokens from the treasury address to the caller's address.
+    /// @param airdropKind The kind of airdrop to be claimed
+    /// @param proof The proof of the claimee
     /// @param amount The amount to be claimed
-    function claim(uint256 amount) external {
-        require(
-            allowance(treasuryAddress, msg.sender) >= amount, 
-            "ERC20: claim amount exceeds allowance"
-        );
+    function claim( 
+        string memory airdropKind,
+        bytes32[] memory proof,
+        uint256 amount
+    ) 
+        external 
+    {
+        require(!rootClaimedAirdrop[airdropToMerkleRoot[airdropKind]][msg.sender], "Already claimed airdrop");
+        verify(proof, msg.sender, amount, airdropKind);
+        rootClaimedAirdrop[airdropToMerkleRoot[airdropKind]][msg.sender] = true;
+        _approve(treasuryAddress, msg.sender, amount);
         transferFrom(treasuryAddress, msg.sender, amount);
         emit TokensClaimed(msg.sender, amount);
     }
@@ -153,7 +179,7 @@ contract Neuron is ERC20, AccessControl {
     /// @param to The address to which the tokens will be minted.
     /// @param amount The amount of tokens to be minted.
     function mint(address to, uint256 amount) public virtual {
-        require(totalSupply() + amount < MAX_SUPPLY, "Trying to mint more than the max supply");
+        require(totalSupply() + amount <= MAX_SUPPLY, "Trying to mint more than the max supply");
         require(hasRole(MINTER_ROLE, msg.sender), "ERC20: must have minter role to mint");
         _mint(to, amount);
     }
@@ -201,6 +227,17 @@ contract Neuron is ERC20, AccessControl {
         uint256 decreasedAllowance = allowance(account, msg.sender) - amount;
         _burn(account, amount);
         _approve(account, msg.sender, decreasedAllowance);
+    }
+
+    function verify(
+        bytes32[] memory proof,
+        address addr,
+        uint256 amount,
+        string memory airdropKind
+    ) public {
+        bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(addr, amount))));
+        require(MerkleProof.verify(proof, airdropToMerkleRoot[airdropKind], leaf), "Invalid proof");
+        // ...
     }
  
 }
