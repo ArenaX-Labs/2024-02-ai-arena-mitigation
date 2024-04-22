@@ -23,6 +23,8 @@ contract VoltageManagerTest is Test {
     address internal _ownerAddress;
     address internal _treasuryAddress;
     address internal _neuronContributorAddress;
+    bytes32 merkle_tree_root = 0x0; // Placeholder for the Merkle tree root
+
 
     function getProb() public {
         _probabilities.push([25, 25, 13, 13, 9, 9]);
@@ -56,7 +58,12 @@ contract VoltageManagerTest is Test {
 
         _gameItemsContract = new GameItems(_ownerAddress, _treasuryAddress);
 
-        _neuronContract = new Neuron(_ownerAddress, _treasuryAddress, _neuronContributorAddress);
+        _neuronContract = new Neuron(
+            _ownerAddress, 
+            _treasuryAddress, 
+            _neuronContributorAddress,
+            merkle_tree_root
+        );
 
         _neuronContract.addSpender(address(_gameItemsContract));
 
