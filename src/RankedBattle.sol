@@ -205,6 +205,7 @@ contract RankedBattle {
     /// @param status The status of the ranked battle.
     function setAllowedStakingDuringRanked(bool status) external {
         require(isAdmin[msg.sender]);
+        require(!rankedOpen, "Cannot change while ranked battles are open");
         require(allowedStakingDuringRanked != status, "Nothing to change");
         allowedStakingDuringRanked = status;
     } 
@@ -275,7 +276,7 @@ contract RankedBattle {
     /// @param tokenId The ID of the fighter to stake.
     function stakeNRN(uint256 amount, uint256 tokenId) external {
         require(amount > 0, "Amount cannot be 0");
-        require(!rankedOpen || (rankedOpen && allowedStakingDuringRanked), "Staking not allowed now");
+        require(!rankedOpen || allowedStakingDuringRanked, "Staking not allowed now");
         require(_fighterFarmInstance.ownerOf(tokenId) == msg.sender, "Caller does not own fighter");
         require(_neuronInstance.balanceOf(msg.sender) >= amount, "Stake amount exceeds balance");
         require(hasUnstaked[tokenId][roundId] == false, "Cannot add stake after unstaking this round");
@@ -302,7 +303,7 @@ contract RankedBattle {
     /// @param tokenId The ID of the token to unstake.
     function unstakeNRN(uint256 amount, uint256 tokenId) external {
         require(_fighterFarmInstance.ownerOf(tokenId) == msg.sender, "Caller does not own fighter");
-        require(!rankedOpen || (rankedOpen && allowedStakingDuringRanked), "UnStaking not allowed now");
+        require(!rankedOpen || allowedStakingDuringRanked, "Unstaking not allowed now");
         if (amount > amountStaked[tokenId]) {
             amount = amountStaked[tokenId];
         }
@@ -364,6 +365,7 @@ contract RankedBattle {
         external 
     {   
         require(msg.sender == _gameServerAddress);
+        require(rankedOpen, "Ranked battles are not open");
         require(mergingPortion <= 100);
         address fighterOwner = _fighterFarmInstance.ownerOf(tokenId);
         require(
