@@ -156,9 +156,9 @@ contract MergingPool is ReentrancyGuard{
             numRoundsClaimed[msg.sender] += 1;
             winnersLength = winnerAddresses[currentRound].length;
             for (uint32 j = 0; j < winnersLength; j++) {
-                require(customAttributes[j][0] < _fighterFarmInstance.numElements(generation), "MergingPool: element out of bounds");
-                require(customAttributes[j][1] >= 65 && customAttributes[j][1] <= 95, "MergingPool: weight out of bounds");
                 if (msg.sender == winnerAddresses[currentRound][j]) {
+                    require(customAttributes[claimIndex][0] < _fighterFarmInstance.numElements(generation), "MergingPool: element out of bounds");
+                    require(customAttributes[claimIndex][1] >= 65 && customAttributes[claimIndex][1] <= 95, "MergingPool: weight out of bounds");
                     _fighterFarmInstance.mintFromMergingPool(
                         msg.sender,
                         modelURIs[claimIndex],
