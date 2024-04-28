@@ -202,7 +202,7 @@ contract GameItems is ERC1155 {
     /// @param _tokenURI The token id to be set
     function setTokenURI(uint256 tokenId, string memory _tokenURI) public {
         require(isAdmin[msg.sender]);
-        require(tokenId == _itemCount, "Token ID does not exist");
+        require(tokenId < _itemCount, "Token ID does not exist");
         _tokenURIs[tokenId] = _tokenURI;
     }
 
