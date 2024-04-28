@@ -75,7 +75,7 @@ contract FighterFarm is ERC721, ERC721Enumerable {
     /// @notice Mapping to keep track of whether a tokenId has staked or not.
     mapping(uint256 => bool) public fighterStaked;
 
-    /// @notice Mapping to keep track of how many times an nft has been re-rolled.
+    /// @notice Mapping to keep track of how many times an NFT has been re-rolled.
     mapping(uint256 => uint8) public numRerolls;
 
     /// @notice Mapping to indicate which addresses are able to stake fighters.
@@ -128,9 +128,19 @@ contract FighterFarm is ERC721, ERC721Enumerable {
     /// @return Generation count of the fighter type.
     function incrementGeneration(uint8 fighterType) external returns (uint8) {
         require(msg.sender == _ownerAddress);
+        require(fighterType == 0 || fighterType == 1);
         generation[fighterType] += 1;
         maxRerollsAllowed[fighterType] += 1;
         return generation[fighterType];
+    }
+
+    /// @notice Updates the number of elements for a given generation.
+    /// @dev Only the owner address is authorized to call this function.
+    /// @param newNumElements number of elements for the generation.
+    /// @param generation_ generation to be updated.
+    function setNumElements(uint8 newNumElements, uint8 generation_) external {
+        require(msg.sender == _ownerAddress);
+        numElements[generation_] = newNumElements;
     }
 
     /// @notice Adds a new address that is allowed to stake fighters on behalf of users.
@@ -173,17 +183,34 @@ contract FighterFarm is ERC721, ERC721Enumerable {
         _mergingPoolAddress = mergingPoolAddress;
     }
 
+    /// @notice Sets the treasury address.
+    /// @dev Only the owner address is authorized to call this function.
+    /// @param treasuryAddress_ Address of the new treasury.
+    function setTreasuryAddress(address treasuryAddress_) external {
+        require(msg.sender == _ownerAddress);
+        treasuryAddress = treasuryAddress_;
+    }
+
+    /// @notice Sets the delegated address.
+    /// @dev Only the owner address is authorized to call this function.
+    /// @param delegatedAddress_ Address of the new delegate.
+    function setDelegatedAddress(address delegatedAddress_) external {
+        require(msg.sender == _ownerAddress);
+        _delegatedAddress = delegatedAddress_;
+    }
+
     /// @notice Sets the tokenURI for the given tokenId.
     /// @dev Only the delegated address is authorized to call this function.
     /// @param tokenId The ID of the token to set the URI for.
     /// @param newTokenURI The new URI to set for the given token.
     function setTokenURI(uint256 tokenId, string calldata newTokenURI) external {
         require(msg.sender == _delegatedAddress);
+        require(_exists(tokenId));
         _tokenURIs[tokenId] = newTokenURI;
     }
 
     /// @notice Enables users to claim a pre-determined number of fighters. 
-    /// @dev The function verifies the message signature is from the delegated address.
+    /// @dev The function verifies if the message signature is from the delegated address.
     /// @param numToMint Array specifying the number of fighters to be claimed for each fighter type.
     /// @param signature Signature of the claim message.
     /// @param modelHashes Array of hashes representing the machine learning models for each fighter.
@@ -203,7 +230,7 @@ contract FighterFarm is ERC721, ERC721Enumerable {
             nftsClaimed[msg.sender][0],
             nftsClaimed[msg.sender][1]
         )));
-        require(Verification.verify(msgHash, signature, _delegatedAddress));
+        require(Verification.verify(_delegatedAddress, msgHash, signature));
         uint16 totalToMint = uint16(numToMint[0] + numToMint[1]);
         require(modelHashes.length == totalToMint && modelTypes.length == totalToMint);
         nftsClaimed[msg.sender][0] += numToMint[0];
@@ -211,7 +238,7 @@ contract FighterFarm is ERC721, ERC721Enumerable {
         for (uint16 i = 0; i < totalToMint; i++) {
             _createNewFighter(
                 msg.sender, 
-                uint256(keccak256(abi.encode(msg.sender, fighters.length))),
+                uint256(keccak256(abi.encode(msg.sender, nftsClaimed[msg.sender][0], nftsClaimed[msg.sender][1]))),
                 modelHashes[i], 
                 modelTypes[i],
                 i < numToMint[0] ? 0 : 1,
@@ -230,13 +257,15 @@ contract FighterFarm is ERC721, ERC721Enumerable {
     /// @param fighterTypes Array of fighter types corresponding to the fighters being minted.
     /// @param modelHashes Array of ML model hashes corresponding to the fighters being minted. 
     /// @param modelTypes Array of ML model types corresponding to the fighters being minted.
+    /// @param signature Signature of the redeem message.
     function redeemMintPass(
         uint256[] calldata mintpassIdsToBurn,
         uint8[] calldata fighterTypes,
         uint8[] calldata iconsTypes,
         string[] calldata mintPassDnas,
         string[] calldata modelHashes,
-        string[] calldata modelTypes
+        string[] calldata modelTypes,
+        bytes calldata signature
     ) 
         external 
     {
@@ -244,8 +273,21 @@ contract FighterFarm is ERC721, ERC721Enumerable {
             mintpassIdsToBurn.length == mintPassDnas.length && 
             mintPassDnas.length == fighterTypes.length && 
             fighterTypes.length == modelHashes.length &&
-            modelHashes.length == modelTypes.length
+            modelHashes.length == modelTypes.length &&
+            modelTypes.length == iconsTypes.length
         );
+
+         bytes32 msgHash = bytes32(keccak256(abi.encode(
+          mintpassIdsToBurn,
+          fighterTypes,
+          iconsTypes,
+          mintPassDnas,
+          modelHashes,
+          modelTypes
+        )));
+
+        require(Verification.verify(_delegatedAddress, msgHash, signature));
+
         for (uint16 i = 0; i < mintpassIdsToBurn.length; i++) {
             require(msg.sender == _mintpassInstance.ownerOf(mintpassIdsToBurn[i]));
             _mintpassInstance.burn(mintpassIdsToBurn[i]);
@@ -321,7 +363,7 @@ contract FighterFarm is ERC721, ERC721Enumerable {
         require(msg.sender == _mergingPoolAddress);
         _createNewFighter(
             to, 
-            uint256(keccak256(abi.encode(msg.sender, fighters.length))), 
+            uint256(keccak256(abi.encode(to, fighters.length))), 
             modelHash, 
             modelType,
             0,
@@ -352,22 +394,26 @@ contract FighterFarm is ERC721, ERC721Enumerable {
     /// @param from Address of the current owner.
     /// @param to Address of the new owner.
     /// @param tokenId ID of the fighter being transferred.
+    /// @param data Additional data.
     function safeTransferFrom(
-        address from, 
-        address to, 
-        uint256 tokenId
+        address from,
+        address to,
+        uint256 tokenId,
+        bytes memory data
     ) 
         public 
-        override(ERC721, IERC721)
+        virtual 
+        override(ERC721, IERC721) 
     {
         require(_ableToTransfer(tokenId, to));
-        _safeTransfer(from, to, tokenId, "");
+        _safeTransfer(from, to, tokenId, data);
     }
 
     /// @notice Rolls a new fighter with random traits.
     /// @param tokenId ID of the fighter being re-rolled.
     /// @param fighterType The fighter type.
-    function reRoll(uint8 tokenId, uint8 fighterType) public {
+    function reRoll(uint256 tokenId, uint8 fighterType) public {
+        require((fighterType == 1) == fighters[tokenId].dendroidBool, "Type mismatch");
         require(msg.sender == ownerOf(tokenId));
         require(numRerolls[tokenId] < maxRerollsAllowed[fighterType]);
         require(_neuronInstance.balanceOf(msg.sender) >= rerollCost, "Not enough NRN for reroll");
@@ -376,7 +422,7 @@ contract FighterFarm is ERC721, ERC721Enumerable {
         bool success = _neuronInstance.transferFrom(msg.sender, treasuryAddress, rerollCost);
         if (success) {
             numRerolls[tokenId] += 1;
-            uint256 dna = uint256(keccak256(abi.encode(msg.sender, tokenId, numRerolls[tokenId])));
+            uint256 dna = uint256(keccak256(abi.encode(tokenId, numRerolls[tokenId])));
             (uint256 element, uint256 weight, uint256 newDna) = _createFighterBase(dna, fighterType);
             fighters[tokenId].element = element;
             fighters[tokenId].weight = weight;
